@@ -4,9 +4,13 @@ This is an attempt to make token caching a little simpler with Oauth2 token stor
 
 How to use
 ----------
+Download the package using this command
 `go get github.com/ptdave20/token_cache`
+
+Here is a small example of it in use with a Google Admin Directory API v1
 ```go
-    ctx := context.Background()
+
+	ctx := context.Background()
 	tCache, err:= token_cache.New("backupGroups")
 	if err!=nil {
 		panic(err)
