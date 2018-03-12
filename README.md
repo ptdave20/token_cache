@@ -5,7 +5,48 @@ This is an attempt to make token caching a little simpler with Oauth2 token stor
 How to use
 ----------
 `go get github.com/ptdave20/token_cache`
+```go
+    ctx := context.Background()
+	tCache, err:= token_cache.New("backupGroups")
+	if err!=nil {
+		panic(err)
+	}
 
+
+	if tCache.Config == nil {
+		// Read the client file
+		b, err := ioutil.ReadFile("client.json")
+		if err != nil {
+			panic(err)
+		}
+
+		config, err := google.ConfigFromJSON(b, admin.AdminDirectoryGroupReadonlyScope, admin.AdminDirectoryGroupMemberReadonlyScope)
+		if err != nil {
+			panic(err)
+		}
+
+		tCache.Config = config
+		tCache.Save()
+	}
+
+	if tCache.Token == nil {
+		// Get the client
+		url := tCache.Config.AuthCodeURL("code", oauth2.AccessTypeOffline)
+		fmt.Printf("Please visit the following url: \r\n\r\n%s\r\nEnter the code given to you here:", url)
+		var code string
+		if _, err := fmt.Scanln(&code); err != nil {
+			panic(err)
+		}
+
+		tok, err := tCache.Config.Exchange(context.Background(), code)
+		if err != nil {
+			panic(err)
+		}
+
+		tCache.Token = tok
+		tCache.Save()
+	}
+```
 
 Contibuting
 -----------

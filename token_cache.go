@@ -4,6 +4,7 @@ import (
 	"runtime"
 	"path"
 	"os"
+	"os/user"
 	"golang.org/x/oauth2"
 	"encoding/json"
 	"io/ioutil"
@@ -11,8 +12,8 @@ import (
 
 type TokenCache struct {
 	clientTokenLocation string	`json:"-"`
-	token *oauth2.Token			`json:"token,omitempty"`
-	config *oauth2.Config       `json:"config,omitempty"`
+	Token *oauth2.Token			`json:"token"`
+	Config *oauth2.Config       `json:"config"`
 }
 
 func New(productName string) (*TokenCache, error) {
@@ -23,23 +24,32 @@ func New(productName string) (*TokenCache, error) {
 	if runtime.GOOS == "windows" {
 		outPath = path.Join("%APPDATA%", "local", productName)
 	} else {
-		outPath = path.Join("~", ".config", productName)
+		u , err:= user.Current()
+		if err!=nil {
+			return nil, err
+		}
+		outPath = path.Join(u.HomeDir, ".config", productName)
 	}
 
 
-	if err := os.MkdirAll(ret.clientTokenLocation, os.ModePerm); err!=nil {
+	if err := os.MkdirAll(outPath, os.ModePerm); err!=nil {
 		if err != os.ErrExist {
 			return nil, err
 		}
 	}
 
 	token := path.Join(outPath, "token.json")
-	b, err := ioutil.ReadFile(token)
-	if err!=nil && os.IsNotExist(err) {
-		return nil, err
-	}
-	if err := json.Unmarshal(b, ret); err!=nil {
-		return nil, err
+	if _, err := os.Stat(token); err != nil && !os.IsNotExist(err){
+		ret.clientTokenLocation = outPath
+	} else if err == nil {
+		b, err := ioutil.ReadFile(token)
+		if err!=nil {
+			return nil, err
+		} else {
+			if err := json.Unmarshal(b, ret); err!=nil {
+				return nil, err
+			}
+		}
 	}
 
 	ret.clientTokenLocation = outPath
@@ -47,29 +57,8 @@ func New(productName string) (*TokenCache, error) {
 	return ret, nil
 }
 
-func (cache *TokenCache) GetToken() (*oauth2.Token) {
-	return cache.token
-}
-
-func (cache *TokenCache) SetToken(token *oauth2.Token) {
-	cache.token = token
-}
-
-func (cache *TokenCache) SetConfig(config *oauth2.Config) {
-	cache.config = config
-}
-
-func (cache *TokenCache) GetConfig() *oauth2.Config {
-	return cache.config
-}
-
-func (cache *TokenCache) Save() error {
-	b, _ := json.Marshal(cache)
+func (cache TokenCache) Save() error {
+	b, _ := json.MarshalIndent(cache,"","    ")
 	token := path.Join(cache.clientTokenLocation, "token.json")
-	// Try to delete the file
-	if err := os.Remove(token); !os.IsNotExist(err) {
-		return err
-	}
-
 	return ioutil.WriteFile(token, b, os.ModePerm)
 }
